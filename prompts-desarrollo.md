@@ -365,3 +365,247 @@ Necesitaba validar que mi implementación funcionara correctamente antes de cont
 - La diferencia entre `compile` y `package` - compile solo compila, package incluye tests y empaquetado
 
 ---
+
+# Prompts de Desarrollo - Etapa 2
+
+## Prompt 5: Diseño de interfaces de repositorio JPA
+
+### Prompt Utilizado:
+```
+Necesito crear interfaces de repositorio para mis entidades JPA (Empleado, Departamento, Proyecto). Quiero que hereden de JpaRepository y que incluyan:
+
+1. EmpleadoRepository: métodos para buscar por email, departamento, rango de salario, fecha de contratación
+2. DepartamentoRepository: métodos para buscar por nombre, calcular salario promedio
+3. ProyectoRepository: métodos para proyectos activos/inactivos, buscar por fechas, contar empleados
+
+También necesito consultas personalizadas con @Query para casos más complejos. ¿Puedes ayudarme?
+```
+
+### Respuesta Recibida:
+```java
+@Repository
+public interface EmpleadoRepository extends JpaRepository<Empleado, Long> {
+    Optional<Empleado> findByEmail(String email);
+    boolean existsByEmail(String email);
+    List<Empleado> findByDepartamento(Departamento departamento);
+    List<Empleado> findBySalarioBetween(BigDecimal salarioMin, BigDecimal salarioMax);
+    
+    @Query("SELECT e FROM Empleado e WHERE e.departamento.nombre = :nombreDepartamento")
+    List<Empleado> findByNombreDepartamento(@Param("nombreDepartamento") String nombreDepartamento);
+    
+    @Query("SELECT AVG(e.salario) FROM Empleado e WHERE e.departamento.id = :departamentoId")
+    Optional<BigDecimal> findAverageSalarioByDepartamento(@Param("departamentoId") Long departamentoId);
+}
+
+// Repositorios similares para Departamento y Proyecto...
+```
+
+### Modificaciones Realizadas:
+- Agregué más consultas personalizadas como buscar por año de contratación
+- Incluí métodos para buscar por nombre o apellido con LIKE case-insensitive
+- Agregué validaciones de existencia con métodos `exists`
+- Implementé consultas para manejar relaciones Many-to-Many con proyectos
+
+### Explicación del Prompt:
+Necesitaba implementar la capa de persistencia con Spring Data JPA. Los métodos derivados facilitan consultas simples, mientras que @Query permite consultas más complejas con JPQL.
+
+### Aprendizajes Obtenidos:
+- Spring Data JPA genera automáticamente implementaciones de métodos derivados
+- @Query permite escribir JPQL personalizado para consultas complejas
+- @Param vincula parámetros de método con parámetros de query
+- Optional<T> es mejor práctica para valores que pueden no existir
+- JPQL es más orientado a objetos que SQL nativo
+- Importancia de manejar relaciones en consultas (JOIN)
+
+---
+
+## Prompt 6: Implementación de servicios con transacciones
+
+### Prompt Utilizado:
+```
+Tengo que implementar la capa de servicios para mi sistema de empleados. Necesito:
+
+1. Interfaces de servicio con operaciones CRUD y de negocio
+2. Implementaciones con @Service y @Transactional
+3. Manejo de excepciones personalizadas
+4. Validaciones de negocio (email único, relaciones válidas)
+5. Métodos para asignar empleados a departamentos y proyectos
+
+¿Puedes ayudarme con la estructura y las mejores prácticas?
+```
+
+### Respuesta Recibida:
+```java
+public interface EmpleadoService {
+    Empleado guardar(Empleado empleado);
+    Empleado buscarPorId(Long id);
+    List<Empleado> obtenerTodos();
+    void eliminar(Long id);
+    
+    // Métodos de negocio
+    void asignarADepartamento(Long empleadoId, Long departamentoId);
+    BigDecimal obtenerSalarioPromedioPorDepartamento(Long departamentoId);
+}
+
+@Service
+@Transactional
+public class EmpleadoServiceImpl implements EmpleadoService {
+    
+    private final EmpleadoRepository empleadoRepository;
+    
+    @Override
+    public Empleado guardar(Empleado empleado) {
+        if (empleadoRepository.existsByEmail(empleado.getEmail())) {
+            throw new EmailDuplicadoException("Email ya existe");
+        }
+        return empleadoRepository.save(empleado);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Empleado buscarPorId(Long id) {
+        return empleadoRepository.findById(id)
+            .orElseThrow(() -> new EmpleadoNoEncontradoException("ID no encontrado"));
+    }
+}
+```
+
+### Modificaciones Realizadas:
+- Implementé validaciones más robustas (campos obligatorios, salario positivo)
+- Agregué más métodos de negocio como asignación a múltiples proyectos
+- Incluí manejo de transacciones readOnly para consultas
+- Mejoré mensajes de error para ser más descriptivos
+- Agregué validaciones de fechas en proyectos
+
+### Explicación del Prompt:
+La capa de servicios es donde va la lógica de negocio. Necesitaba separar responsabilidades: repositories para persistencia, services para reglas de negocio y transacciones.
+
+### Aprendizajes Obtenidos:
+- @Transactional asegura consistencia de datos y rollback automático
+- @Transactional(readOnly = true) optimiza consultas de solo lectura
+- Inyección de dependencias por constructor es más robusta que @Autowired
+- Excepciones unchecked (RuntimeException) causan rollback automático
+- Validaciones deben estar en la capa de servicio, no en controladores
+- Importancia de validar datos antes de persistir
+
+---
+
+## Prompt 7: Manejo de excepciones personalizadas
+
+### Prompt Utilizado:
+```
+Necesito crear excepciones personalizadas para mi aplicación de empleados:
+- EmpleadoNoEncontradoException
+- EmailDuplicadoException  
+- DepartamentoNoEncontradoException
+- ProyectoNoEncontradoException
+
+¿Cómo debo estructurarlas? ¿Deben heredar de Exception o RuntimeException? ¿Qué constructores incluir?
+```
+
+### Respuesta Recibida:
+```java
+public class EmpleadoNoEncontradoException extends RuntimeException {
+    public EmpleadoNoEncontradoException(String mensaje) {
+        super(mensaje);
+    }
+    
+    public EmpleadoNoEncontradoException(String mensaje, Throwable causa) {
+        super(mensaje, causa);
+    }
+}
+
+public class EmailDuplicadoException extends RuntimeException {
+    public EmailDuplicadoException(String mensaje) {
+        super(mensaje);
+    }
+    
+    public EmailDuplicadoException(String mensaje, Throwable causa) {
+        super(mensaje, causa);
+    }
+}
+```
+
+### Modificaciones Realizadas:
+- Mantuve las excepciones simples sin complejidad innecesaria
+- Agregué constructores estándar que son útiles para debugging
+- Cree una excepción para cada entidad principal del dominio
+
+### Explicación del Prompt:
+Las excepciones personalizadas mejoran la legibilidad del código y permiten manejo específico de errores. Heredar de RuntimeException evita el manejo obligatorio (checked exceptions).
+
+### Aprendizajes Obtenidos:
+- RuntimeException es mejor para errores de lógica de negocio
+- Constructores estándar: solo mensaje y mensaje + causa
+- Nombres descriptivos ayudan a identificar el problema rápidamente
+- No sobrecomplicar con campos adicionales a menos que sea necesario
+- Las excepciones de dominio facilitan el debugging y logging
+
+---
+
+## Prompt 8: Validaciones y lógica de negocio avanzada
+
+### Prompt Utilizado:
+```
+En mis servicios necesito implementar validaciones más sofisticadas:
+
+1. Validar que no se pueda eliminar un departamento con empleados
+2. Verificar fechas válidas en proyectos (inicio < fin)
+3. Asegurar que salarios sean positivos
+4. Validar campos obligatorios antes de guardar
+5. Controlar la asignación de empleados a proyectos (evitar duplicados)
+
+¿Cómo estructuro estas validaciones en mis services?
+```
+
+### Respuesta Recibida:
+```java
+@Override
+public Empleado guardar(Empleado empleado) {
+    // Validaciones de datos
+    if (empleado.getNombre() == null || empleado.getNombre().trim().isEmpty()) {
+        throw new IllegalArgumentException("El nombre es obligatorio");
+    }
+    
+    if (empleado.getSalario() == null || empleado.getSalario().compareTo(BigDecimal.ZERO) <= 0) {
+        throw new IllegalArgumentException("El salario debe ser mayor a cero");
+    }
+    
+    // Validaciones de negocio
+    if (empleadoRepository.existsByEmail(empleado.getEmail())) {
+        throw new EmailDuplicadoException("Email ya existe: " + empleado.getEmail());
+    }
+    
+    return empleadoRepository.save(empleado);
+}
+
+@Override
+public void eliminar(Long id) {
+    Departamento departamento = buscarPorId(id);
+    
+    if (!puedeEliminar(id)) {
+        throw new IllegalStateException("No se puede eliminar - tiene empleados asignados");
+    }
+    
+    departamentoRepository.delete(departamento);
+}
+```
+
+### Modificaciones Realizadas:
+- Implementé validaciones más exhaustivas para cada entidad
+- Agregué métodos helper como `puedeEliminar()` para encapsular lógica
+- Mejoré mensajes de error para incluir valores específicos
+- Agregué validación de rangos en búsquedas por salario y fechas
+
+### Explicación del Prompt:
+Las validaciones robustas son críticas para mantener integridad de datos. Necesitaba balancear validaciones técnicas (campos nulos) con reglas de negocio (unicidad, relaciones).
+
+### Aprendizajes Obtenidos:
+- Separar validaciones técnicas de reglas de negocio
+- IllegalArgumentException para datos inválidos
+- IllegalStateException para estados de negocio inválidos
+- Validar temprano y fallar rápido (fail-fast)
+- Encapsular lógica compleja en métodos privados helper
+- Mensajes de error específicos facilitan debugging para desarrolladores
+
+---
