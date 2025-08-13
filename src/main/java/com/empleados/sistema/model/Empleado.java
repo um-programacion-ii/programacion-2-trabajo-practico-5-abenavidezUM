@@ -1,6 +1,7 @@
 package com.empleados.sistema.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -14,18 +15,28 @@ public class Empleado {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
+    @NotBlank(message = "El nombre es obligatorio")
+    @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
     @Column(nullable = false, length = 100)
     private String nombre;
     
+    @NotBlank(message = "El apellido es obligatorio")
+    @Size(min = 2, max = 100, message = "El apellido debe tener entre 2 y 100 caracteres")
     @Column(nullable = false, length = 100)
     private String apellido;
     
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "El email debe tener un formato válido")
     @Column(unique = true, nullable = false)
     private String email;
     
+    @NotNull(message = "La fecha de contratación es obligatoria")
+    @PastOrPresent(message = "La fecha de contratación no puede ser futura")
     @Column(name = "fecha_contratacion", nullable = false)
     private LocalDate fechaContratacion;
     
+    @NotNull(message = "El salario es obligatorio")
+    @DecimalMin(value = "0.01", message = "El salario debe ser mayor a cero")
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal salario;
     
