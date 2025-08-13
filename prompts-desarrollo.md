@@ -609,3 +609,293 @@ Las validaciones robustas son críticas para mantener integridad de datos. Neces
 - Mensajes de error específicos facilitan debugging para desarrolladores
 
 ---
+
+# Prompts de Desarrollo - Etapa 3
+
+## Prompt 9: Implementación de controladores REST
+
+### Prompt Utilizado:
+```
+Necesito crear controladores REST para mi sistema de empleados con las siguientes características:
+
+1. EmpleadoController: CRUD completo + endpoints para búsquedas específicas
+2. DepartamentoController: gestión de departamentos + empleados asociados  
+3. ProyectoController: manejo de proyectos + asignación de empleados
+4. Usar ResponseEntity para respuestas HTTP apropiadas
+5. Validación con @Valid en los endpoints de creación/actualización
+
+¿Puedes ayudarme con la estructura y mejores prácticas para REST APIs?
+```
+
+### Respuesta Recibida:
+```java
+@RestController
+@RequestMapping("/api/empleados")
+public class EmpleadoController {
+    
+    private final EmpleadoService empleadoService;
+    
+    @GetMapping
+    public ResponseEntity<List<Empleado>> obtenerTodos() {
+        List<Empleado> empleados = empleadoService.obtenerTodos();
+        return ResponseEntity.ok(empleados);
+    }
+    
+    @PostMapping
+    public ResponseEntity<Empleado> crear(@Valid @RequestBody Empleado empleado) {
+        Empleado nuevoEmpleado = empleadoService.guardar(empleado);
+        return ResponseEntity.status(HttpStatus.CREATED).body(nuevoEmpleado);
+    }
+    
+    @GetMapping("/departamento/{nombreDepartamento}")
+    public ResponseEntity<List<Empleado>> buscarPorDepartamento(@PathVariable String nombreDepartamento) {
+        List<Empleado> empleados = empleadoService.buscarPorDepartamento(nombreDepartamento);
+        return ResponseEntity.ok(empleados);
+    }
+}
+```
+
+### Modificaciones Realizadas:
+- Agregué endpoints específicos para cada tipo de búsqueda (email, departamento, salario)
+- Implementé operaciones de asignación entre entidades con PUT/DELETE
+- Incluí endpoints de estadísticas y reportes
+- Agregué validación de parámetros con @Valid
+- Usé códigos de estado HTTP apropiados (201 Created, 204 No Content)
+
+### Explicación del Prompt:
+Necesitaba crear la capa de presentación siguiendo principios REST. Los controladores deben ser delgados y delegar la lógica a los servicios, mientras manejan correctamente las respuestas HTTP.
+
+### Aprendizajes Obtenidos:
+- @RestController combina @Controller y @ResponseBody
+- @RequestMapping define el path base para todos los endpoints
+- ResponseEntity permite control total sobre respuesta HTTP (status, headers, body)
+- @PathVariable para parámetros en la URL, @RequestParam para query parameters
+- @Valid activa validaciones de Bean Validation automáticamente
+- Códigos de estado HTTP comunican claramente el resultado de la operación
+
+---
+
+## Prompt 10: Manejo centralizado de excepciones
+
+### Prompt Utilizado:
+```
+Quiero implementar un manejo centralizado de errores para mi API REST. Necesito:
+
+1. GlobalExceptionHandler con @RestControllerAdvice
+2. Manejo específico para mis excepciones personalizadas
+3. Respuestas JSON consistentes con timestamp, status, error, message
+4. Manejo de errores de validación de Bean Validation
+5. Mapeo de excepciones a códigos HTTP apropiados
+
+¿Cómo estructuro esto correctamente?
+```
+
+### Respuesta Recibida:
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    
+    @ExceptionHandler(EmpleadoNoEncontradoException.class)
+    public ResponseEntity<Map<String, Object>> handleEmpleadoNoEncontrado(
+            EmpleadoNoEncontradoException ex, WebRequest request) {
+        Map<String, Object> response = createErrorResponse(
+            HttpStatus.NOT_FOUND.value(),
+            "Empleado no encontrado",
+            ex.getMessage(),
+            request.getDescription(false)
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+    
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationErrors(
+            MethodArgumentNotValidException ex, WebRequest request) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+        
+        // response con validationErrors
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+}
+```
+
+### Modificaciones Realizadas:
+- Agregué manejo específico para todas mis excepciones personalizadas
+- Implementé formato de respuesta consistente con método helper
+- Incluí manejo detallado de errores de validación con field-level errors
+- Agregué manejo genérico para excepciones no previstas
+- Mapeé apropiadamente excepciones a códigos HTTP
+
+### Explicación del Prompt:
+El manejo centralizado de errores mejora la experiencia del usuario y facilita el debugging. Necesitaba respuestas consistentes y informativas para todos los tipos de error.
+
+### Aprendizajes Obtenidos:
+- @RestControllerAdvice permite manejo global de excepciones en controllers
+- @ExceptionHandler mapea tipos de excepción a métodos específicos
+- MethodArgumentNotValidException contiene errores de Bean Validation
+- FieldError proporciona detalles específicos de cada campo inválido
+- WebRequest da contexto sobre la petición HTTP
+- Formato consistente de respuestas facilita el manejo en frontend
+
+---
+
+## Prompt 11: Configuración avanzada de profiles
+
+### Prompt Utilizado:
+```
+Necesito expandir mi configuración de application.yml para soportar completamente:
+
+1. Profile dev con H2 y logging detallado para desarrollo
+2. Profile mysql con configuración optimizada para MySQL
+3. Profile postgres con configuración específica para PostgreSQL
+4. Diferentes niveles de logging por profile
+5. Configuración de puerto y dialectos específicos
+
+¿Puedes ayudarme a completar esto?
+```
+
+### Respuesta Recibida:
+```yaml
+spring:
+  profiles:
+    active: dev
+
+server:
+  port: 8080
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+
+logging:
+  level:
+    com.empleados.sistema: DEBUG
+    org.springframework.web: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: mysql
+  datasource:
+    url: jdbc:mysql://localhost:3306/empleados_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: empleados_user
+    password: empleados_pass
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+```
+
+### Modificaciones Realizadas:
+- Agregué configuración de puerto del servidor
+- Incluí dialectos específicos para cada base de datos
+- Configuré niveles de logging diferenciados por entorno
+- Agregué parámetros adicionales para MySQL (allowPublicKeyRetrieval)
+- Mantuve configuración específica de H2 console para desarrollo
+
+### Explicación del Prompt:
+Los profiles permiten tener configuraciones específicas por entorno sin cambiar código. Esto es esencial para manejar desarrollo, testing y producción con diferentes bases de datos.
+
+### Aprendizajes Obtenidos:
+- Separación clara entre configuración de desarrollo y producción
+- H2 con create-drop es ideal para development (datos temporales)
+- MySQL/PostgreSQL con update preserva datos entre ejecuciones
+- Logging DEBUG en desarrollo ayuda a debuggear, INFO en producción es más limpio
+- Parámetros de conexión específicos por base de datos (timezone, SSL)
+- YAML permite múltiples documentos separados por `---`
+
+---
+
+## Prompt 12: Validaciones avanzadas con Bean Validation
+
+### Prompt Utilizado:
+```
+Quiero agregar validaciones robustas a mis entidades usando Bean Validation:
+
+1. Validaciones básicas: @NotNull, @NotBlank, @Size
+2. Validaciones específicas: @Email, @PastOrPresent, @DecimalMin
+3. Mensajes de error personalizados en español
+4. Integración con controllers usando @Valid
+5. Manejo de errores de validación en GlobalExceptionHandler
+
+¿Cómo implemento esto correctamente?
+```
+
+### Respuesta Recibida:
+```java
+@Entity
+public class Empleado {
+    
+    @NotBlank(message = "El nombre es obligatorio")
+    @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
+    private String nombre;
+    
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "El email debe tener un formato válido")
+    private String email;
+    
+    @NotNull(message = "La fecha de contratación es obligatoria")
+    @PastOrPresent(message = "La fecha de contratación no puede ser futura")
+    private LocalDate fechaContratacion;
+    
+    @NotNull(message = "El salario es obligatorio")
+    @DecimalMin(value = "0.01", message = "El salario debe ser mayor a cero")
+    private BigDecimal salario;
+}
+
+// En Controller
+@PostMapping
+public ResponseEntity<Empleado> crear(@Valid @RequestBody Empleado empleado) {
+    // Spring automáticamente valida y lanza MethodArgumentNotValidException si hay errores
+}
+```
+
+### Modificaciones Realizadas:
+- Agregué la dependencia spring-boot-starter-validation al pom.xml
+- Implementé validaciones comprehensivas en la entidad Empleado
+- Incluí mensajes de error en español para mejor UX
+- Integré @Valid en los endpoints POST y PUT
+- Expandí GlobalExceptionHandler para manejar MethodArgumentNotValidException
+
+### Explicación del Prompt:
+Bean Validation proporciona una forma declarativa y consistente de validar datos. Al combinar con @Valid en controllers, las validaciones se ejecutan automáticamente antes de llegar a la lógica de negocio.
+
+### Aprendizajes Obtenidos:
+- Bean Validation es estándar Java, no específico de Spring
+- @Valid en controllers activa validaciones automáticamente
+- MethodArgumentNotValidException contiene todos los errores de validación
+- FieldError proporciona detalles campo por campo
+- Validaciones declarativas son más legibles que validaciones imperativas
+- Mensajes personalizados mejoran la experiencia del usuario
+- Validación temprana (en controller) previene datos inválidos en servicios
+
+---
