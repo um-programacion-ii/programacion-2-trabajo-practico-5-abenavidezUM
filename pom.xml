@@ -5,27 +5,14 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.0</version>
+		<version>3.2.0</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.empleados</groupId>
-	<artifactId>sistema-gestion-empleados</artifactId>
+	<artifactId>sistema</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>sistema-gestion-empleados</name>
+	<name>Sistema Gestion Empleados</name>
 	<description>Sistema de Gestión de Empleados con JPA y Spring Boot</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
 	<properties>
 		<java.version>17</java.version>
 	</properties>
