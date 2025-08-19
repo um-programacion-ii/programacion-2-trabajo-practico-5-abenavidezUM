@@ -899,3 +899,345 @@ Bean Validation proporciona una forma declarativa y consistente de validar datos
 - Validación temprana (en controller) previene datos inválidos en servicios
 
 ---
+
+# Prompts de Desarrollo - Etapa 4
+
+## Prompt 13: Configuración de Docker Compose
+
+### Prompt Utilizado:
+```
+Necesito crear un docker-compose.yml para mi aplicación Spring Boot que incluya:
+- Contenedor MySQL 8.0
+- Contenedor PostgreSQL 16
+- Volúmenes persistentes para ambas bases de datos
+- Variables de entorno para configurar usuarios y contraseñas
+- Healthchecks para verificar que las bases estén listas
+- Red compartida entre contenedores
+
+¿Cómo debería estructurar este archivo?
+```
+
+### Respuesta Recibida:
+```yaml
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: empleados_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: empleados_db
+      MYSQL_USER: empleados_user
+      MYSQL_PASSWORD: empleados_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - empleados_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16
+    container_name: empleados_postgres
+    environment:
+      POSTGRES_DB: empleados_db
+      POSTGRES_USER: empleados_user
+      POSTGRES_PASSWORD: empleados_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - empleados_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U empleados_user -d empleados_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+  postgres_data:
+
+networks:
+  empleados_network:
+    driver: bridge
+```
+
+### Modificaciones Realizadas:
+- Mejoré los healthchecks para incluir credenciales específicas
+- Usé nombres de contenedores descriptivos
+- Configuré volúmenes con nombres claros
+- Mantuve la estructura organizada por secciones
+
+### Explicación del Prompt:
+Necesitaba configurar contenedores Docker para las bases de datos MySQL y PostgreSQL que se utilizan con los diferentes profiles de Spring Boot. Docker Compose facilita la gestión de estos contenedores.
+
+### Aprendizajes Obtenidos:
+- Docker Compose permite definir múltiples servicios en un solo archivo
+- Los volúmenes permiten persistir datos entre reinicios
+- Las redes permiten la comunicación entre contenedores
+- Los healthchecks verifican que los servicios estén realmente disponibles
+- Las variables de entorno configuran los servicios sin modificar sus imágenes
+- Los puertos expuestos permiten acceder a los servicios desde el host
+- La versión 3.8 ofrece características avanzadas de Docker Compose
+
+---
+
+## Prompt 14: Implementación de pruebas unitarias
+
+### Prompt Utilizado:
+```
+Necesito implementar pruebas unitarias para mi EmpleadoService usando JUnit 5 y Mockito. El servicio tiene métodos como guardar(), buscarPorId(), actualizar(), eliminar() y varios métodos de búsqueda. ¿Cómo debería estructurar estas pruebas para cubrir casos exitosos y de error?
+```
+
+### Respuesta Recibida:
+```java
+@ExtendWith(MockitoExtension.class)
+public class EmpleadoServiceTest {
+
+    @Mock
+    private EmpleadoRepository empleadoRepository;
+
+    @Mock
+    private DepartamentoRepository departamentoRepository;
+
+    @InjectMocks
+    private EmpleadoServiceImpl empleadoService;
+
+    private Empleado empleado;
+
+    @BeforeEach
+    void setUp() {
+        empleado = new Empleado();
+        empleado.setId(1L);
+        empleado.setNombre("Juan");
+        empleado.setApellido("Pérez");
+        empleado.setEmail("juan.perez@empresa.com");
+        empleado.setFechaContratacion(LocalDate.now().minusYears(1));
+        empleado.setSalario(new BigDecimal("50000.00"));
+    }
+
+    @Test
+    void debeGuardarEmpleadoCorrectamente() {
+        // Arrange
+        when(empleadoRepository.existsByEmail(anyString())).thenReturn(false);
+        when(empleadoRepository.save(any(Empleado.class))).thenReturn(empleado);
+
+        // Act
+        Empleado resultado = empleadoService.guardar(empleado);
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals("juan.perez@empresa.com", resultado.getEmail());
+        verify(empleadoRepository).existsByEmail("juan.perez@empresa.com");
+        verify(empleadoRepository).save(empleado);
+    }
+
+    @Test
+    void debeLanzarExcepcionCuandoEmailYaExiste() {
+        // Arrange
+        when(empleadoRepository.existsByEmail(anyString())).thenReturn(true);
+
+        // Act & Assert
+        assertThrows(EmailDuplicadoException.class, () -> {
+            empleadoService.guardar(empleado);
+        });
+        verify(empleadoRepository).existsByEmail("juan.perez@empresa.com");
+        verify(empleadoRepository, never()).save(any(Empleado.class));
+    }
+}
+```
+
+### Modificaciones Realizadas:
+- Agregué más casos de prueba para cubrir todos los métodos del servicio
+- Implementé pruebas para validaciones de negocio
+- Mejoré los asserts para verificar comportamiento específico
+- Estructuré las pruebas con el patrón AAA (Arrange, Act, Assert)
+- Agregué pruebas para excepciones específicas
+
+### Explicación del Prompt:
+Las pruebas unitarias son esenciales para verificar que la lógica de negocio funciona correctamente. Para servicios, es importante mockear las dependencias para aislar la unidad bajo prueba.
+
+### Aprendizajes Obtenidos:
+- @ExtendWith(MockitoExtension.class) configura JUnit 5 con Mockito
+- @Mock crea objetos simulados de dependencias
+- @InjectMocks inyecta los mocks en la clase a probar
+- @BeforeEach permite configurar el entorno de prueba para cada test
+- when().thenReturn() configura el comportamiento de los mocks
+- verify() confirma que los métodos del mock fueron llamados
+- assertThrows() verifica que se lancen excepciones específicas
+- El patrón AAA (Arrange, Act, Assert) mejora la legibilidad de las pruebas
+
+---
+
+## Prompt 15: Implementación de pruebas de integración
+
+### Prompt Utilizado:
+```
+Necesito implementar pruebas de integración para mi EmpleadoController usando @WebMvcTest. Quiero probar los endpoints GET, POST, PUT y DELETE, incluyendo manejo de errores y validaciones. ¿Cómo debería estructurar estas pruebas?
+```
+
+### Respuesta Recibida:
+```java
+@WebMvcTest(EmpleadoController.class)
+public class EmpleadoControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private EmpleadoService empleadoService;
+
+    private Empleado empleado;
+
+    @BeforeEach
+    void setUp() {
+        empleado = new Empleado();
+        empleado.setId(1L);
+        empleado.setNombre("Juan");
+        empleado.setApellido("Pérez");
+        empleado.setEmail("juan.perez@empresa.com");
+        empleado.setFechaContratacion(LocalDate.now().minusYears(1));
+        empleado.setSalario(new BigDecimal("50000.00"));
+    }
+
+    @Test
+    void debeObtenerTodosLosEmpleados() throws Exception {
+        List<Empleado> empleados = Arrays.asList(empleado);
+        when(empleadoService.obtenerTodos()).thenReturn(empleados);
+
+        mockMvc.perform(get("/api/empleados"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$", hasSize(1)))
+            .andExpect(jsonPath("$[0].nombre", is("Juan")));
+    }
+
+    @Test
+    void debeCrearEmpleado() throws Exception {
+        when(empleadoService.guardar(any(Empleado.class))).thenReturn(empleado);
+
+        mockMvc.perform(post("/api/empleados")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(empleado)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id", is(1)));
+    }
+}
+```
+
+### Modificaciones Realizadas:
+- Agregué pruebas para todos los endpoints principales
+- Incluí pruebas para casos de error (404, 400, 409)
+- Mejoré las verificaciones de respuestas JSON
+- Implementé pruebas para validación de datos con @Valid
+- Agregué pruebas para endpoints de búsqueda específicos
+
+### Explicación del Prompt:
+Las pruebas de integración para controladores verifican la capa web completa, incluyendo serialización/deserialización JSON, mapeo de rutas, códigos de estado HTTP y manejo de excepciones.
+
+### Aprendizajes Obtenidos:
+- @WebMvcTest configura un contexto Spring para pruebas de controladores
+- MockMvc simula peticiones HTTP sin iniciar un servidor real
+- @MockBean reemplaza beans del contexto con mocks
+- ObjectMapper serializa/deserializa objetos Java a/desde JSON
+- jsonPath permite verificar la estructura de respuestas JSON
+- status().isOk() verifica código 200, isCreated() verifica 201, etc.
+- andExpect encadena verificaciones sobre la respuesta
+- content().contentType() verifica el tipo de contenido de la respuesta
+
+---
+
+## Prompt 16: Configuración de pruebas de repositorio
+
+### Prompt Utilizado:
+```
+Necesito implementar pruebas para mis repositorios JPA usando @DataJpaTest. Quiero probar métodos derivados y consultas personalizadas con @Query. ¿Cómo debería configurar estas pruebas con H2 en memoria?
+```
+
+### Respuesta Recibida:
+```java
+@DataJpaTest
+@ActiveProfiles("test")
+public class EmpleadoRepositoryTest {
+
+    @Autowired
+    private TestEntityManager entityManager;
+
+    @Autowired
+    private EmpleadoRepository empleadoRepository;
+
+    private Empleado empleado;
+    private Departamento departamento;
+
+    @BeforeEach
+    void setUp() {
+        // Crear y persistir un departamento
+        departamento = new Departamento();
+        departamento.setNombre("IT");
+        departamento.setDescripcion("Departamento de Tecnología");
+        departamento = entityManager.persistAndFlush(departamento);
+
+        // Crear y persistir un empleado
+        empleado = new Empleado();
+        empleado.setNombre("Juan");
+        empleado.setApellido("Pérez");
+        empleado.setEmail("juan.perez@empresa.com");
+        empleado.setFechaContratacion(LocalDate.now().minusYears(1));
+        empleado.setSalario(new BigDecimal("50000.00"));
+        empleado.setDepartamento(departamento);
+        empleado = entityManager.persistAndFlush(empleado);
+    }
+
+    @Test
+    void debeBuscarPorEmail() {
+        // Act
+        Optional<Empleado> encontrado = empleadoRepository.findByEmail("juan.perez@empresa.com");
+
+        // Assert
+        assertTrue(encontrado.isPresent());
+        assertEquals("Juan", encontrado.get().getNombre());
+    }
+
+    @Test
+    void debeBuscarPorDepartamento() {
+        // Act
+        List<Empleado> empleados = empleadoRepository.findByDepartamento(departamento);
+
+        // Assert
+        assertFalse(empleados.isEmpty());
+        assertEquals("IT", empleados.get(0).getDepartamento().getNombre());
+    }
+}
+```
+
+### Modificaciones Realizadas:
+- Agregué configuración específica para H2 en application-test.yml
+- Incluí pruebas para todas las consultas personalizadas
+- Mejoré los datos de prueba para cubrir más casos
+- Agregué verificaciones más detalladas en los asserts
+- Implementé pruebas para métodos de agregación (promedio, conteo)
+
+### Explicación del Prompt:
+Las pruebas de repositorio verifican que las consultas JPA y JPQL funcionen correctamente contra una base de datos real (aunque en memoria). Esto es crucial para validar el mapeo objeto-relacional.
+
+### Aprendizajes Obtenidos:
+- @DataJpaTest configura un contexto Spring para pruebas de JPA
+- TestEntityManager es una versión simplificada de EntityManager para pruebas
+- @ActiveProfiles("test") activa la configuración específica para pruebas
+- persistAndFlush guarda entidades y sincroniza con la base de datos
+- Las pruebas de repositorio son más lentas que las unitarias pero más realistas
+- H2 en memoria es ideal para pruebas por su velocidad y aislamiento
+- Las relaciones entre entidades deben configurarse correctamente en las pruebas
+
+---
