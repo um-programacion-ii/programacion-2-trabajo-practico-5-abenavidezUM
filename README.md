@@ -110,8 +110,8 @@ Desarrollar un sistema de gestión de empleados utilizando Spring Boot con JPA, 
 > 💡 **Nota**: Esta estimación considera la complejidad de configurar múltiples bases de datos, Docker y el aprendizaje de JPA. El tiempo incluye la configuración de profiles y la containerización de las bases de datos.
 
 ## 👨‍🎓 Información del Alumno
-- **Nombre y Apellido**: [Nombre y Apellido del Alumno]
-- **Legajo**: [Número de Legajo]
+- **Nombre y Apellido**: Agustin Benavidez
+- **Legajo**: 62344
 
 > ⚠️ **IMPORTANTE**: Este trabajo práctico se realiza **INDIVIDUALMENTE**. Aunque se utilizan herramientas de colaboración como Pull Requests y Code Review, estas son para mantener buenas prácticas de desarrollo y un historial ordenado. Todo el desarrollo debe ser realizado por el mismo estudiante.
 
